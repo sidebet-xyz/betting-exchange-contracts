@@ -4,19 +4,21 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
-// This contract represents a betting exchange token, where users can place, accept, and settle bets.
+/**
+ * @title BettingExchangeToken
+ * @dev This contract represents a betting exchange token, allowing users
+ * to place, accept, and settle bets.
+ */
 contract BettingExchangeToken is ERC20 {
     using Counters for Counters.Counter;
 
     // Counter for unique bet IDs
-    Counters.Counter public betsIds;
+    Counters.Counter public betIds;
 
-    // Default oracle who can referee and settle bets
+    // Default oracle responsible for refereeing and settling bets
     address public refereeOracle;
 
-    // Address of the emergency oracle, which has the power to change the oracle address of any bet at any time,
-    // irrespective of its current state. This can be useful in situations where the designated oracle might
-    // be compromised, unresponsive, or there's any other unexpected event requiring immediate intervention.
+    // Oracle with emergency privileges to override and update oracles for bets
     address public emergencyOracle;
 
     // Owner of the contract, typically the deployer
@@ -24,16 +26,16 @@ contract BettingExchangeToken is ERC20 {
 
     // Struct representing a single bet
     struct Bet {
-        address alice; // Address of the person who created the bet
-        address bob; // Address of the person who accepted the bet
+        address alice; // Creator of the bet
+        address bob; // Acceptor of the bet
         uint256 amount; // Amount of tokens staked in the bet
-        bool isActive; // Flag indicating if the bet has been accepted
-        bool isListed; // Flag indicating if the bet is currently listed and active
-        bool isCanceled; // Flag indicating if the bet was canceled by its creator
-        address oracle; // Oracle's address responsible for settling the bet
+        bool isActive; // True if the bet is currently active and accepted
+        bool isListed; // True if the bet is currently listed and active
+        bool isCanceled; // True if the bet was canceled by its creator
+        address oracle; // Oracle responsible for settling the bet
     }
 
-    // Mapping of bet ID to Bet struct
+    // Mapping from bet ID to the Bet struct
     mapping(uint256 => Bet) private idToBet;
 
     // Mapping of settled bet IDs to Bet struct
@@ -42,41 +44,37 @@ contract BettingExchangeToken is ERC20 {
     // Mapping of canceled bet IDs to Bet struct
     mapping(uint256 => Bet) private canceledBets;
 
-    // Event emitted when a new bet is created
+    // Events
     event BetCreated(
         uint256 indexed betId,
         address indexed alice,
         uint256 amount,
         address indexed oracle
     );
-
-    // Event emitted when a bet is accepted by another user
     event BetAccepted(uint256 indexed betId, address indexed bob);
-
-    // Event emitted when a bet is settled by the oracle
     event BetSettled(
         uint256 indexed betId,
         address indexed winner,
         address indexed oracle
     );
-
-    // Event emitted when a bet's oracle is updated
     event BetOracleUpdated(
         uint256 indexed betId,
         address indexed oldOracle,
         address indexed newOracle
     );
-
-    // Event emitted when a bet is canceled by its creator
     event BetCanceled(uint256 indexed betId, address indexed alice);
 
-    // Modifier to ensure only the owner can call certain functions
+    // Modifiers
     modifier onlyOwner() {
-        require(msg.sender == owner, "Only the owner can call this function");
+        require(msg.sender == owner, "Only the owner can call this function.");
         _;
     }
 
-    // Constructor for initializing the betting token with a default oracle
+    /**
+     * @dev Constructor for initializing the betting token.
+     * @param _refereeOracle Address of the default referee oracle.
+     * @param _emergencyOracle Address of the emergency oracle.
+     */
     constructor(address _refereeOracle, address _emergencyOracle)
         ERC20("Betting Exchange Token", "BET")
     {
@@ -85,12 +83,19 @@ contract BettingExchangeToken is ERC20 {
         emergencyOracle = _emergencyOracle;
     }
 
-    // Function to set or update the default oracle
+    /**
+     * @dev Allows the owner to set or update the default oracle.
+     * @param _newOracle Address of the new default oracle.
+     */
     function setRefereeOracle(address _newOracle) public onlyOwner {
         refereeOracle = _newOracle;
     }
 
-    /// Function to create a new bet
+    /**
+     * @dev Allows users to create a new bet.
+     * @param _amount Amount of tokens to be staked for the bet.
+     * @param _oracle Address of the oracle to be used. If not provided, the default oracle is used.
+     */
     function createBet(uint256 _amount, address _oracle) public {
         require(
             balanceOf(msg.sender) >= _amount,
@@ -98,12 +103,10 @@ contract BettingExchangeToken is ERC20 {
         );
         _transfer(msg.sender, address(this), _amount);
 
-        // Decide the oracle for the bet. Use default if none provided.
         address oracleToUse = (_oracle == address(0)) ? refereeOracle : _oracle;
 
-        // Increment the counter to get a new unique bet ID
-        betsIds.increment();
-        idToBet[betsIds.current()] = Bet(
+        betIds.increment();
+        idToBet[betIds.current()] = Bet(
             msg.sender,
             address(0),
             _amount,
@@ -113,10 +116,13 @@ contract BettingExchangeToken is ERC20 {
             oracleToUse
         );
 
-        emit BetCreated(betsIds.current(), msg.sender, _amount, oracleToUse);
+        emit BetCreated(betIds.current(), msg.sender, _amount, oracleToUse);
     }
 
-    // Function to read details about a specific bet
+    /**
+     * @dev Reads details about a specific bet.
+     * @param _betId ID of the bet to be read.
+     */
     function readBet(uint256 _betId)
         public
         view
@@ -142,7 +148,11 @@ contract BettingExchangeToken is ERC20 {
         );
     }
 
-    // Function to update the oracle of a specific bet
+    /**
+     * @dev Allows certain users to update the oracle of a specific bet.
+     * @param _betId ID of the bet.
+     * @param _newOracle Address of the new oracle.
+     */
     function updateBetOracle(uint256 _betId, address _newOracle) public {
         require(
             _newOracle != address(0),
@@ -150,10 +160,7 @@ contract BettingExchangeToken is ERC20 {
         );
 
         Bet storage bet = idToBet[_betId];
-        require(bet.alice != address(0), "Bet does not exist."); // Check if the bet exists
-
-        // The emergency oracle can change the oracle address at any time.
-        // Alice can change it only if the bet hasn't been accepted yet.
+        require(bet.alice != address(0), "Bet does not exist.");
         require(
             msg.sender == emergencyOracle ||
                 (msg.sender == bet.alice && bet.bob == address(0)),
@@ -166,83 +173,72 @@ contract BettingExchangeToken is ERC20 {
         emit BetOracleUpdated(_betId, oldOracle, _newOracle);
     }
 
-    // Function for another user to accept an existing bet
+    /**
+     * @dev Allows users to accept an existing bet.
+     * @param _betId ID of the bet to be accepted.
+     */
     function acceptBet(uint256 _betId) public {
-        Bet storage bet = idToBet[_betId];
-
-        require(bet.isListed, "Bet is not listed or does not exist.");
-        require(bet.bob == address(0), "Bet already accepted.");
         require(
-            balanceOf(msg.sender) >= bet.amount,
+            balanceOf(msg.sender) >= idToBet[_betId].amount,
             "Insufficient funds to accept bet."
         );
-        require(msg.sender != bet.alice, "Alice cannot accept her own bet.");
 
-        // Transfer the bet amount from Bob to the contract
+        Bet storage bet = idToBet[_betId];
+        require(bet.alice != address(0), "Bet does not exist.");
+        require(!bet.isActive, "Bet is already active.");
+        require(bet.alice != msg.sender, "Cannot accept own bet.");
+        require(!bet.isCanceled, "Bet has been canceled.");
+
         _transfer(msg.sender, address(this), bet.amount);
 
-        // Update the bet details indicating that Bob has accepted the bet
         bet.bob = msg.sender;
         bet.isActive = true;
+        bet.isListed = false;
 
         emit BetAccepted(_betId, msg.sender);
     }
 
-    // Function for the oracle to settle a bet, determining a winner
+    /**
+     * @dev Allows the oracle to settle a bet, choosing a winner.
+     * @param _betId ID of the bet to be settled.
+     * @param _winner Address of the winner.
+     */
     function settleBet(uint256 _betId, address _winner) public {
         Bet storage bet = idToBet[_betId];
-        uint256 totalAmount = bet.amount * 2;
-
+        require(bet.isActive, "Bet is not active.");
         require(
-            bet.isListed && bet.isActive,
-            "Bet is not listed, not active or does not exist."
+            bet.alice == _winner || bet.bob == _winner,
+            "Winner must be either Alice or Bob of the bet."
         );
         require(
             msg.sender == bet.oracle,
-            "Only the designated oracle can settle this bet."
-        );
-        require(
-            _winner == bet.alice || _winner == bet.bob,
-            "Winner must be either Alice or Bob."
+            "Only the designated oracle can settle the bet."
         );
 
-        _transfer(address(this), _winner, totalAmount);
-        bet.isListed = false;
-        bet.isActive = false;
+        _transfer(address(this), _winner, bet.amount * 2);
 
-        // Move the bet to settledBets mapping
         settledBets[_betId] = bet;
-
-        // Delete the bet from idToBet mapping
         delete idToBet[_betId];
 
         emit BetSettled(_betId, _winner, bet.oracle);
     }
 
-    // Function for the creator of the bet to cancel it
+    /**
+     * @dev Allows the creator of a bet to cancel it if it has not been accepted.
+     * @param _betId ID of the bet to be canceled.
+     */
     function cancelBet(uint256 _betId) public {
         Bet storage bet = idToBet[_betId];
-
-        // Various checks to ensure the legitimacy of the cancellation request
         require(bet.alice != address(0), "Bet does not exist.");
+        require(!bet.isActive, "Cannot cancel an active bet.");
         require(
             msg.sender == bet.alice,
             "Only the creator can cancel the bet."
         );
-        require(!bet.isActive, "Bet is already active.");
-        require(bet.isListed, "Bet is not listed.");
 
-        // Refund the bet amount to Alice
         _transfer(address(this), bet.alice, bet.amount);
 
-        // Update bet status
-        bet.isListed = false;
-        bet.isCanceled = true;
-
-        // Archive the bet in the canceledBets mapping
         canceledBets[_betId] = bet;
-
-        // Remove the bet from active bets mapping
         delete idToBet[_betId];
 
         emit BetCanceled(_betId, bet.alice);
