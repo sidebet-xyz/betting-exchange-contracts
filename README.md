@@ -1,4 +1,4 @@
-# Side₿et: Decentralized Betting Exchange Contracts for RSK & all EVM compatible chains
+# Side₿et: Decentralized Betting Exchange Contracts for RSK & EVM compatible chains
 
 Welcome to the `Side₿et` repository! Here, we host the Solidity smart contracts designed for the decentralized betting exchange platform, primarily for the RSK (Rootstock) network, an EVM-compatible chain. Side₿et enables users to place, accept, and settle bets using the native Side₿et Token. Additionally, a dedicated faucet contract facilitates the distribution of tokens for testing or promotional campaigns.
 
