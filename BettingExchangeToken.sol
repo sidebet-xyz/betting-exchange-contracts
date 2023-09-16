@@ -14,6 +14,7 @@ import "@openzeppelin/contracts/utils/Counters.sol";
  * @dev This token facilitates the operations of a betting exchange. Ensure adequate precautions are taken for secure bet settlement and management.
  */
 contract BettingExchangeToken is ERC20 {
+    // Enables the usage of methods from the Counters library for the Counters.Counter data type.
     using Counters for Counters.Counter;
 
     // Type declarations (Enums and Structs)

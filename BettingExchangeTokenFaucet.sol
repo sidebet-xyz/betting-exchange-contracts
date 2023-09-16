@@ -13,6 +13,8 @@ import "./BettingExchangeToken.sol";
  * @dev This is typically used for testing or initial distribution purposes. Users can request tokens only once, and only if they have a balance of zero.
  */
 contract BettingExchangeTokenFaucet {
+    // Type declarations (Enums and Structs) - [none in this contract]
+
     // State variables
 
     // Instance of the BettingExchangeToken contract
@@ -152,9 +154,7 @@ contract BettingExchangeTokenFaucet {
         emit Whitelisted(user);
     }
 
-    // Internal functions
-    // [none in this contract]
+    // Internal functions - [none in this contract]
 
-    // Private functions
-    // [none in this contract]
+    // Private functions - [none in this contract]
 }
