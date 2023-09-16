@@ -1,69 +1,160 @@
+// Pragma statement
 // SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.9;
 
+// Import statements
 import "./BettingExchangeToken.sol";
+
+// Contracts
 
 /**
  * @title BettingExchangeTokenFaucet
- * @dev A faucet contract for distributing the BettingExchangeToken for free to users.
- *      Users can request tokens once, and only if they have a balance of zero.
+ * @notice This contract allows users to request a specific amount of BettingExchangeToken for free, given certain conditions.
+ * @dev This is typically used for testing or initial distribution purposes. Users can request tokens only once, and only if they have a balance of zero.
  */
 contract BettingExchangeTokenFaucet {
-    // Reference to the BettingExchangeToken contract
+    // State variables
+
+    // Instance of the BettingExchangeToken contract
     BettingExchangeToken public token;
 
-    // Maximum tokens a user can request per call
+    // Maximum amount of tokens that a user can request at once
     uint256 public maxTokensPerRequest;
 
-    // Tracks which addresses have already requested tokens
+    // Mapping to keep track of which addresses have already requested tokens
     mapping(address => bool) public hasRequested;
 
-    // The address of the owner of the faucet, typically the deployer
+    // Owner's address, typically the deployer of this contract
     address public owner = msg.sender;
 
-    /**
-     * @dev Constructor to set the token contract address, maximum tokens per request and decimals for the token.
-     * @param _tokenAddress Address of the BettingExchangeToken.
-     * @param _maxTokensPerRequest Maximum tokens users can request.
-     * @param _decimals Number of decimals the token uses.
-     */
-    constructor(address _tokenAddress, uint256 _maxTokensPerRequest, uint8 _decimals) {
-        token = BettingExchangeToken(_tokenAddress);
-        maxTokensPerRequest = _maxTokensPerRequest * (10 ** _decimals);
+    // Mapping to blacklist certain addresses from requesting tokens
+    mapping(address => bool) public isBlacklisted;
+
+    // Events
+
+    // Event emitted when the ownership of the contract is transferred
+    event OwnershipTransferred(
+        address indexed previousOwner,
+        address indexed newOwner
+    );
+
+    // Event emitted when an address is blacklisted
+    event Blacklisted(address indexed user);
+
+    // Event emitted when an address is removed from the blacklist
+    event Whitelisted(address indexed user);
+
+    // Modifiers
+
+    // Ensures that only the owner can execute certain functions
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only the owner can call this function");
+        _;
     }
 
+    // Ensures that blacklisted addresses cannot execute certain functions
+    modifier notBlacklisted() {
+        require(
+            !isBlacklisted[msg.sender],
+            "You are blacklisted from requesting tokens"
+        );
+        _;
+    }
+
+    // Constructor
+
     /**
-     * @dev Allows users to request tokens from the faucet.
+     * @notice Creates an instance of the BettingExchangeTokenFaucet contract.
+     * @param _tokenAddress The address of the BettingExchangeToken contract.
+     * @param _maxTokensPerRequest The maximum amount of tokens that a user can request.
+     * @param _decimals The number of decimals used in the token, for precision.
      */
-    function requestTokens() public {
-        require(token.balanceOf(msg.sender) == 0, "You must have 0 balance to request tokens.");
-        require(!hasRequested[msg.sender], "You have already requested tokens.");
+    constructor(
+        address _tokenAddress,
+        uint256 _maxTokensPerRequest,
+        uint8 _decimals
+    ) {
+        token = BettingExchangeToken(_tokenAddress);
+        maxTokensPerRequest = _maxTokensPerRequest * (10**_decimals);
+    }
+
+    // Public functions
+
+    /**
+     * @notice Allows eligible users to request tokens from the faucet.
+     * @dev Users must meet the criteria defined by having a zero balance and not having requested before.
+     */
+    function requestTokens() public notBlacklisted {
+        require(
+            token.balanceOf(msg.sender) == 0,
+            "You must have 0 balance to request tokens."
+        );
+        require(
+            !hasRequested[msg.sender],
+            "You have already requested tokens."
+        );
 
         hasRequested[msg.sender] = true;
-
-        // Ensure that the transfer is successful
-        require(token.transfer(msg.sender, maxTokensPerRequest), "Token transfer failed.");
+        require(
+            token.transfer(msg.sender, maxTokensPerRequest),
+            "Token transfer failed."
+        );
     }
 
     /**
-     * @dev Gets the balance of the faucet.
-     * @return uint256 The balance of the faucet.
+     * @notice Fetches the balance of tokens currently held by the faucet.
+     * @return uint256 The balance of tokens in the faucet.
      */
     function getFaucetBalance() public view returns (uint256) {
         return token.balanceOf(address(this));
     }
 
+    // External functions
+
     /**
-     * @dev Allows the owner to replenish the faucet.
-     * @param _amount Amount of tokens to add to the faucet.
+     * @notice Allows the owner to add more tokens to the faucet.
+     * @param _amount The number of tokens to be added to the faucet.
      */
     function replenishFaucet(uint256 _amount) external onlyOwner {
-        require(token.transferFrom(msg.sender, address(this), _amount), "Token transfer failed.");
+        require(
+            token.transferFrom(msg.sender, address(this), _amount),
+            "Token transfer failed."
+        );
     }
 
-    // Modifier to ensure only the owner can call certain functions
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Only the owner can call this function");
-        _;
+    /**
+     * @notice Enables the owner to transfer the ownership of the faucet to a new address.
+     * @param newOwner The address of the new owner.
+     */
+    function transferOwnership(address newOwner) external onlyOwner {
+        require(newOwner != address(0), "New owner is the zero address.");
+        emit OwnershipTransferred(owner, newOwner);
+        owner = newOwner;
     }
+
+    /**
+     * @notice Adds an address to the blacklist, preventing them from requesting tokens.
+     * @param user The address to be blacklisted.
+     */
+    function blacklistUser(address user) external onlyOwner {
+        require(!isBlacklisted[user], "User is already blacklisted.");
+        isBlacklisted[user] = true;
+        emit Blacklisted(user);
+    }
+
+    /**
+     * @notice Removes an address from the blacklist, allowing them to request tokens again.
+     * @param user The address to be removed from the blacklist.
+     */
+    function whitelistUser(address user) external onlyOwner {
+        require(isBlacklisted[user], "User is not blacklisted.");
+        isBlacklisted[user] = false;
+        emit Whitelisted(user);
+    }
+
+    // Internal functions
+    // [none in this contract]
+
+    // Private functions
+    // [none in this contract]
 }
