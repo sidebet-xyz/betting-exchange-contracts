@@ -78,7 +78,7 @@ contract BettingExchangeToken is ERC20 {
     constructor(address _refereeOracle, address _emergencyOracle)
         ERC20("Betting Exchange Token", "BET")
     {
-        _mint(msg.sender, 147000000 * 10**decimals());
+        _mint(msg.sender, 22000000 * 10**decimals());
         refereeOracle = _refereeOracle;
         emergencyOracle = _emergencyOracle;
     }
