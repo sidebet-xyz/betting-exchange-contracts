@@ -190,43 +190,41 @@ contract BettingExchangeToken is ERC20 {
     /**
      * @dev Allows the oracle to settle a bet, choosing a winner.
      * @param _betId ID of the bet to be settled.
-     * @param _winner Address of the winner.
+     * @param _winner Address of the winner of the bet.
      */
     function settleBet(uint256 _betId, address _winner) public {
         Bet storage bet = bets[_betId];
         require(bet.state == State.Active, "Bet is not active.");
         require(
-            bet.alice == _winner || bet.bob == _winner,
-            "Winner must be either Alice or Bob of the bet."
-        );
-        require(
-            msg.sender == bet.oracle,
-            "Only the designated oracle can settle the bet."
+            bet.oracle == msg.sender,
+            "Only the oracle can settle this bet."
         );
 
-        _transfer(address(this), _winner, bet.amount * 2);
+        require(
+            _winner == bet.alice || _winner == bet.bob,
+            "Winner must be either Alice or Bob."
+        );
+
+        uint256 totalAmount = bet.amount * 2;
+        _transfer(address(this), _winner, totalAmount);
         bet.state = State.Settled;
 
         emit BetSettled(_betId, _winner, bet.oracle);
     }
 
     /**
-     * @dev Allows the creator of a bet to cancel it if it has not been accepted.
+     * @dev Allows the bet creator to cancel a bet.
      * @param _betId ID of the bet to be canceled.
      */
     function cancelBet(uint256 _betId) public {
         Bet storage bet = bets[_betId];
+        require(bet.state == State.Listed, "Bet is not listed.");
         require(
-            bet.state == State.Listed,
-            "Cannot cancel a bet that's not listed."
-        );
-        require(
-            msg.sender == bet.alice,
-            "Only the creator can cancel the bet."
+            bet.alice == msg.sender,
+            "Only the bet creator can cancel the bet."
         );
 
         _transfer(address(this), bet.alice, bet.amount);
-
         bet.state = State.Canceled;
 
         emit BetCanceled(_betId, bet.alice);
