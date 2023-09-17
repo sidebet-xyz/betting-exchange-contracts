@@ -51,6 +51,9 @@ contract TestingBettingExchangeToken is ERC20 {
     // Mapping from bet ID to the Bet struct
     mapping(uint256 => Bet) private bets;
 
+    // Mapping for user's active bets
+    mapping(address => uint256[]) private userActiveBets;
+
     // Events
 
     // Event emitted when a new bet is created
@@ -96,10 +99,11 @@ contract TestingBettingExchangeToken is ERC20 {
      * @param _refereeOracle The address of the default referee oracle.
      * @param _emergencyOracle The address of the emergency oracle.
      */
-    constructor(address _refereeOracle, address _emergencyOracle)
-        ERC20("Testing Betting Exchange Token", "TBET")
-    {
-        _mint(msg.sender, 22000000 * 10**decimals());
+    constructor(
+        address _refereeOracle,
+        address _emergencyOracle
+    ) ERC20("Testing Betting Exchange Token", "TBET") {
+        _mint(msg.sender, 22000000 * 10 ** decimals());
         refereeOracle = _refereeOracle;
         emergencyOracle = _emergencyOracle;
     }
@@ -184,6 +188,8 @@ contract TestingBettingExchangeToken is ERC20 {
         bet.bob = msg.sender;
         bet.state = State.Active;
 
+        userActiveBets[bet.bob].push(_betId); // Add bet ID to the bob's active bets
+
         emit BetAccepted(_betId, msg.sender);
     }
 
@@ -236,7 +242,9 @@ contract TestingBettingExchangeToken is ERC20 {
      * @dev Reads details about a specific bet.
      * @param _betId ID of the bet to be read.
      */
-    function readBet(uint256 _betId)
+    function readBet(
+        uint256 _betId
+    )
         public
         view
         returns (
@@ -249,6 +257,43 @@ contract TestingBettingExchangeToken is ERC20 {
     {
         Bet memory bet = bets[_betId];
         return (bet.alice, bet.bob, bet.amount, bet.state, bet.oracle);
+    }
+
+    /**
+     * @dev Allows users to get a list of all available bets.
+     */
+    function getAvailableBets() public view returns (uint256[] memory) {
+        uint256 count = 0;
+
+        // First, count the number of available bets
+        for (uint256 i = 1; i <= betIds.current(); i++) {
+            if (bets[i].state == State.Listed) {
+                count++;
+            }
+        }
+
+        uint256[] memory availableBets = new uint256[](count);
+        uint256 index = 0;
+
+        // Populate the array of available bet IDs
+        for (uint256 i = 1; i <= betIds.current() && index < count; i++) {
+            if (bets[i].state == State.Listed) {
+                availableBets[index] = i;
+                index++;
+            }
+        }
+
+        return availableBets;
+    }
+
+    /**
+     * @dev Allows users to get a list of their active bets.
+     * @param user Address of the user.
+     */
+    function getActiveBetsForUser(
+        address user
+    ) public view returns (uint256[] memory) {
+        return userActiveBets[user];
     }
 
     // Internal functions
