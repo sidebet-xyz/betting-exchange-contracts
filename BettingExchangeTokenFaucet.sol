@@ -43,9 +43,6 @@ contract BettingExchangeTokenFaucet {
     // Event emitted when an address is blacklisted
     event Blacklisted(address indexed user);
 
-    // Event emitted when an address is removed from the blacklist
-    event Whitelisted(address indexed user);
-
     // Modifiers
 
     // Ensures that only the owner can execute certain functions
@@ -114,17 +111,6 @@ contract BettingExchangeTokenFaucet {
     // External functions
 
     /**
-     * @notice Allows the owner to add more tokens to the faucet.
-     * @param _amount The number of tokens to be added to the faucet.
-     */
-    function replenishFaucet(uint256 _amount) external onlyOwner {
-        require(
-            token.transferFrom(msg.sender, address(this), _amount),
-            "Token transfer failed."
-        );
-    }
-
-    /**
      * @notice Enables the owner to transfer the ownership of the faucet to a new address.
      * @param newOwner The address of the new owner.
      */
@@ -144,17 +130,9 @@ contract BettingExchangeTokenFaucet {
         emit Blacklisted(user);
     }
 
-    /**
-     * @notice Removes an address from the blacklist, allowing them to request tokens again.
-     * @param user The address to be removed from the blacklist.
-     */
-    function whitelistUser(address user) external onlyOwner {
-        require(isBlacklisted[user], "User is not blacklisted.");
-        isBlacklisted[user] = false;
-        emit Whitelisted(user);
-    }
+    // Internal functions
+    // [none in this contract]
 
-    // Internal functions - [none in this contract]
-
-    // Private functions - [none in this contract]
+    // Private functions
+    // [none in this contract]
 }
