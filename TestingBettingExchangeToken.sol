@@ -100,6 +100,13 @@ contract TestingBettingExchangeToken is ERC20 {
      */
     mapping(address => uint256[]) private userCanceledBets;
 
+    /**
+     * @dev Mapping to store open bets for each user.
+     * - key: address of the user.
+     * - value: array of bet IDs representing the open bets of the user.
+     */
+    mapping(address => uint256[]) private userOpenBets;
+
     // Events
 
     // Event emitted when a new bet is created
@@ -167,6 +174,14 @@ contract TestingBettingExchangeToken is ERC20 {
     }
 
     /**
+     * @dev Allows the owner to set or update the emergency oracle.
+     * @param _newEmergencyOracle Address of the new emergency oracle.
+     */
+    function setEmergencyOracle(address _newEmergencyOracle) public onlyOwner {
+        emergencyOracle = _newEmergencyOracle;
+    }
+
+    /**
      * @dev Allows users to create a new bet.
      * @param _amount Amount of tokens to be staked for the bet.
      * @param _oracle Address of the oracle to be used. If not provided, the default oracle is used.
@@ -188,6 +203,8 @@ contract TestingBettingExchangeToken is ERC20 {
             State.Listed,
             oracleToUse
         );
+
+        userOpenBets[msg.sender].push(betIds.current()); // Add bet ID to user's open bets
 
         emit BetCreated(betIds.current(), msg.sender, _amount, oracleToUse);
     }
@@ -235,6 +252,8 @@ contract TestingBettingExchangeToken is ERC20 {
 
         userActiveBets[bet.alice].push(_betId); // Add bet ID to Alice's active bets
         userActiveBets[bet.bob].push(_betId); // Add bet ID to Bob's active bets
+
+        removeOpenBetForUser(bet.alice, _betId); // Remove from Alice's open bets
 
         emit BetAccepted(_betId, msg.sender);
     }
@@ -394,23 +413,48 @@ contract TestingBettingExchangeToken is ERC20 {
         return userCanceledBets[user];
     }
 
+    /**
+     * @dev Allows users to get a list of their open bets.
+     * @param user Address of the user whose open bets need to be retrieved.
+     * @return Returns an array of bet IDs that are currently open for the specified user.
+     */
+    function getOpenBetsForUser(address user)
+        public
+        view
+        returns (uint256[] memory)
+    {
+        return userOpenBets[user];
+    }
+
     // Internal functions
 
     /**
-     * @dev Removes an active bet from a user's list of active bets.
-     * @param user The address of the user whose active bet is being removed.
-     * @param _betId The ID of the bet to be removed from the user's active bets.
-     *
-     * Assumes that the function is only called internally with valid preconditions,
-     * i.e., the user has active bets and _betId is valid.
+     * @dev Removes a bet from the user's active bets array.
+     * @param user Address of the user.
+     * @param _betId ID of the bet to be removed.
      */
     function removeActiveBetForUser(address user, uint256 _betId) internal {
         uint256[] storage activeBets = userActiveBets[user];
-
         for (uint256 i = 0; i < activeBets.length; i++) {
             if (activeBets[i] == _betId) {
                 activeBets[i] = activeBets[activeBets.length - 1];
                 activeBets.pop();
+                break;
+            }
+        }
+    }
+
+    /**
+     * @dev Removes a bet from the user's open bets array.
+     * @param user Address of the user.
+     * @param _betId ID of the bet to be removed.
+     */
+    function removeOpenBetForUser(address user, uint256 _betId) internal {
+        uint256[] storage openBets = userOpenBets[user];
+        for (uint256 i = 0; i < openBets.length; i++) {
+            if (openBets[i] == _betId) {
+                openBets[i] = openBets[openBets.length - 1];
+                openBets.pop();
                 break;
             }
         }
