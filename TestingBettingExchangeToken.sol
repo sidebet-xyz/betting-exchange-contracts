@@ -17,8 +17,14 @@ contract TestingBettingExchangeToken is ERC20 {
     // Enables the usage of methods from the Counters library for the Counters.Counter data type.
     using Counters for Counters.Counter;
 
-    // Type declarations (Enums and Structs)
-
+    // Enums
+    /**
+     * @dev Enumeration representing the possible states of a bet.
+     * - Listed: The bet has been created and is awaiting acceptance.
+     * - Active: The bet has been accepted and is currently ongoing.
+     * - Canceled: The bet has been canceled by its creator.
+     * - Settled: The bet has concluded and a winner has been declared by the oracle.
+     */
     enum State {
         Listed,
         Active,
@@ -26,12 +32,21 @@ contract TestingBettingExchangeToken is ERC20 {
         Settled
     }
 
+    // Structs
+    /**
+     * @dev Structure representing a bet.
+     * @param alice The address of the user who created the bet.
+     * @param bob The address of the user who accepted the bet.
+     * @param amount The amount of tokens each user has staked in the bet.
+     * @param state The current state of the bet (Listed, Active, Canceled, Settled).
+     * @param oracle The address of the oracle responsible for settling the bet.
+     */
     struct Bet {
-        address alice; // Creator of the bet
-        address bob; // Acceptor of the bet
-        uint256 amount; // Amount of tokens staked in the bet
-        State state; // State of the bet (e.g., Active, Canceled, etc.)
-        address oracle; // Oracle responsible for settling the bet
+        address alice;
+        address bob;
+        uint256 amount;
+        State state;
+        address oracle;
     }
 
     // State variables
@@ -48,11 +63,35 @@ contract TestingBettingExchangeToken is ERC20 {
     // Oracle with emergency privileges to override and update oracles for bets
     address public emergencyOracle;
 
-    // Mapping from bet ID to the Bet struct
+    // Mappings
+
+    /**
+     * @dev Mapping to store the details of each bet, associated by a unique bet ID.
+     * - key: unique bet ID.
+     * - value: Bet struct containing the details of the bet.
+     */
     mapping(uint256 => Bet) private bets;
 
-    // Mapping for user's active bets
+    /**
+     * @dev Mapping to store active bets for each user.
+     * - key: address of the user.
+     * - value: array of bet IDs representing the active bets of the user.
+     */
     mapping(address => uint256[]) private userActiveBets;
+
+    /**
+     * @dev Mapping to store settled bets for each user.
+     * - key: address of the user.
+     * - value: array of bet IDs representing the settled bets of the user.
+     */
+    mapping(address => uint256[]) private userSettledBets;
+
+    /**
+     * @dev Mapping to store canceled bets for each user.
+     * - key: address of the user.
+     * - value: array of bet IDs representing the canceled bets of the user.
+     */
+    mapping(address => uint256[]) private userCanceledBets;
 
     // Events
 
@@ -99,11 +138,10 @@ contract TestingBettingExchangeToken is ERC20 {
      * @param _refereeOracle The address of the default referee oracle.
      * @param _emergencyOracle The address of the emergency oracle.
      */
-    constructor(
-        address _refereeOracle,
-        address _emergencyOracle
-    ) ERC20("Testing Betting Exchange Token", "TBET") {
-        _mint(msg.sender, 22000000 * 10 ** decimals());
+    constructor(address _refereeOracle, address _emergencyOracle)
+        ERC20("Testing Betting Exchange Token", "TBET")
+    {
+        _mint(msg.sender, 22000000 * 10**decimals());
         refereeOracle = _refereeOracle;
         emergencyOracle = _emergencyOracle;
     }
@@ -188,7 +226,8 @@ contract TestingBettingExchangeToken is ERC20 {
         bet.bob = msg.sender;
         bet.state = State.Active;
 
-        userActiveBets[bet.bob].push(_betId); // Add bet ID to the bob's active bets
+        userActiveBets[bet.alice].push(_betId); // Add bet ID to Alice's active bets
+        userActiveBets[bet.bob].push(_betId); // Add bet ID to Bob's active bets
 
         emit BetAccepted(_betId, msg.sender);
     }
@@ -205,7 +244,6 @@ contract TestingBettingExchangeToken is ERC20 {
             bet.oracle == msg.sender,
             "Only the oracle can settle this bet."
         );
-
         require(
             _winner == bet.alice || _winner == bet.bob,
             "Winner must be either Alice or Bob."
@@ -214,6 +252,12 @@ contract TestingBettingExchangeToken is ERC20 {
         uint256 totalAmount = bet.amount * 2;
         _transfer(address(this), _winner, totalAmount);
         bet.state = State.Settled;
+
+        removeActiveBetForUser(bet.alice, _betId); // Remove from Alice's active bets
+        removeActiveBetForUser(bet.bob, _betId); // Remove from Bob's active bets
+
+        userSettledBets[bet.alice].push(_betId); // Add to Alice's settled bets
+        userSettledBets[bet.bob].push(_betId); // Add to Bob's settled bets
 
         emit BetSettled(_betId, _winner, bet.oracle);
     }
@@ -233,6 +277,8 @@ contract TestingBettingExchangeToken is ERC20 {
         _transfer(address(this), bet.alice, bet.amount);
         bet.state = State.Canceled;
 
+        userCanceledBets[bet.alice].push(_betId); // Add to Alice's canceled bets
+
         emit BetCanceled(_betId, bet.alice);
     }
 
@@ -242,9 +288,7 @@ contract TestingBettingExchangeToken is ERC20 {
      * @dev Reads details about a specific bet.
      * @param _betId ID of the bet to be read.
      */
-    function readBet(
-        uint256 _betId
-    )
+    function readBet(uint256 _betId)
         public
         view
         returns (
@@ -288,16 +332,60 @@ contract TestingBettingExchangeToken is ERC20 {
 
     /**
      * @dev Allows users to get a list of their active bets.
-     * @param user Address of the user.
+     * @param user Address of the user whose active bets need to be retrieved.
+     * @return Returns an array of bet IDs that are currently active for the specified user.
      */
-    function getActiveBetsForUser(
-        address user
-    ) public view returns (uint256[] memory) {
+    function getActiveBetsForUser(address user)
+        public
+        view
+        returns (uint256[] memory)
+    {
         return userActiveBets[user];
     }
 
+    /**
+     * @dev Allows users to get a list of their settled bets.
+     * @param user Address of the user whose settled bets need to be retrieved.
+     * @return Returns an array of bet IDs that have been settled for the specified user.
+     */
+    function getSettledBetsForUser(address user)
+        public
+        view
+        returns (uint256[] memory)
+    {
+        return userSettledBets[user];
+    }
+
+    /**
+     * @dev Allows users to get a list of their canceled bets.
+     * @param user Address of the user whose canceled bets need to be retrieved.
+     * @return Returns an array of bet IDs that have been canceled by the specified user.
+     */
+    function getCanceledBetsForUser(address user)
+        public
+        view
+        returns (uint256[] memory)
+    {
+        return userCanceledBets[user];
+    }
+
     // Internal functions
-    // [none in this contract]
+
+    /**
+     * @dev Removes an active bet from a user's list of active bets.
+     * @param user The address of the user whose active bet is being removed.
+     * @param _betId The ID of the bet to be removed from the user's active bets.
+     */
+    function removeActiveBetForUser(address user, uint256 _betId) internal {
+        uint256[] storage activeBets = userActiveBets[user];
+        for (uint256 i = 0; i < activeBets.length; i++) {
+            if (activeBets[i] == _betId) {
+                activeBets[i] = activeBets[activeBets.length - 1];
+                activeBets.pop();
+                break;
+            }
+        }
+    }
 
     // Private functions
     // [none in this contract]
