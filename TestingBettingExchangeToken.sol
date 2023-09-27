@@ -80,11 +80,18 @@ contract TestingBettingExchangeToken is ERC20 {
     mapping(address => uint256[]) private userActiveBets;
 
     /**
-     * @dev Mapping to store settled bets for each user.
+     * @dev Mapping to store won bets for each user.
      * - key: address of the user.
-     * - value: array of bet IDs representing the settled bets of the user.
+     * - value: array of bet IDs representing the won bets of the user.
      */
-    mapping(address => uint256[]) private userSettledBets;
+    mapping(address => uint256[]) private userWonBets;
+
+    /**
+     * @dev Mapping to store lost bets for each user.
+     * - key: address of the user.
+     * - value: array of bet IDs representing the lost bets of the user.
+     */
+    mapping(address => uint256[]) private userLostBets;
 
     /**
      * @dev Mapping to store canceled bets for each user.
@@ -256,8 +263,13 @@ contract TestingBettingExchangeToken is ERC20 {
         removeActiveBetForUser(bet.alice, _betId); // Remove from Alice's active bets
         removeActiveBetForUser(bet.bob, _betId); // Remove from Bob's active bets
 
-        userSettledBets[bet.alice].push(_betId); // Add to Alice's settled bets
-        userSettledBets[bet.bob].push(_betId); // Add to Bob's settled bets
+        if (_winner == bet.alice) {
+            userWonBets[bet.alice].push(_betId); // Add to Alice's won bets
+            userLostBets[bet.bob].push(_betId); // Add to Bob's lost bets
+        } else {
+            userWonBets[bet.bob].push(_betId); // Add to Bob's won bets
+            userLostBets[bet.alice].push(_betId); // Add to Alice's lost bets
+        }
 
         emit BetSettled(_betId, _winner, bet.oracle);
     }
@@ -344,16 +356,29 @@ contract TestingBettingExchangeToken is ERC20 {
     }
 
     /**
-     * @dev Allows users to get a list of their settled bets.
-     * @param user Address of the user whose settled bets need to be retrieved.
-     * @return Returns an array of bet IDs that have been settled for the specified user.
+     * @dev Allows users to get a list of their won bets.
+     * @param user Address of the user whose won bets need to be retrieved.
+     * @return Returns an array of bet IDs that have been won by the specified user.
      */
-    function getSettledBetsForUser(address user)
+    function getWonBetsForUser(address user)
         public
         view
         returns (uint256[] memory)
     {
-        return userSettledBets[user];
+        return userWonBets[user];
+    }
+
+    /**
+     * @dev Allows users to get a list of their lost bets.
+     * @param user Address of the user whose lost bets need to be retrieved.
+     * @return Returns an array of bet IDs that have been lost by the specified user.
+     */
+    function getLostBetsForUser(address user)
+        public
+        view
+        returns (uint256[] memory)
+    {
+        return userLostBets[user];
     }
 
     /**
@@ -375,9 +400,13 @@ contract TestingBettingExchangeToken is ERC20 {
      * @dev Removes an active bet from a user's list of active bets.
      * @param user The address of the user whose active bet is being removed.
      * @param _betId The ID of the bet to be removed from the user's active bets.
+     *
+     * Assumes that the function is only called internally with valid preconditions,
+     * i.e., the user has active bets and _betId is valid.
      */
     function removeActiveBetForUser(address user, uint256 _betId) internal {
         uint256[] storage activeBets = userActiveBets[user];
+
         for (uint256 i = 0; i < activeBets.length; i++) {
             if (activeBets[i] == _betId) {
                 activeBets[i] = activeBets[activeBets.length - 1];
