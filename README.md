@@ -1,77 +1,71 @@
-# BettingExchangeToken.sol
+# TestingBettingExchangeToken
 
-From the desks of the **Side₿et Development Team**:
+## Overview
+The `TestingBettingExchangeToken` is a smart contract built on the Rootstock testnet, and it's designed to facilitate betting activities in the Bitcoin ecosystem. This contract lets users engage in various stages of betting including creating, accepting, and settling bets.
 
-The `BettingExchangeToken` Solidity contract stands as a testament to the Side₿et ethos - pioneering, innovative, and user-centric. Positioned as the linchpin of the Side₿et platform on the RSK network, it pioneers a seamless pathway for users to place, accept, and settle bets. Dive into our crafted breakdown:
+## Table of Contents
+- [Features](#features)
+- [Deployment](#deployment)
+- [Interaction](#interaction)
+- [Events](#events)
+- [Utilities](#utilities)
 
-## Prerequisites and Libraries
+## Features
 
-- The contract is sculpted with Solidity version `^0.8.9`.
-- Our dedication to standards reflects as we leverage OpenZeppelin's `ERC20`, ensuring the token retains both identity and functionality.
-- Trust is paramount. Hence, OpenZeppelin's `Counters` library ensures the safe allocation of unique bet IDs.
+### Enums:
+1. **State**
+    - `Listed`: A bet that's been created but not accepted yet.
+    - `Active`: A bet that's ongoing.
+    - `Canceled`: A bet that was canceled by its creator.
+    - `Settled`: A bet that has ended with a winner.
 
-## State Variables
+### Structs:
+1. **Bet**
+    - Contains the two betting parties (`alice` and `bob`), the bet amount, its current state, and the oracle in charge of declaring the outcome.
 
-- `betIds`: Not just a counter, but the heartbeat generating unique bet IDs.
-- `refereeOracle`: The sentinel. Our primary oracle holding the scales of arbitration.
-- `emergencyOracle`: For the unpredictable times. This oracle has the discretion to tweak the oracle address for any bet.
-- `owner`: It's more than an address. It symbolizes the mastermind, often the deployer.
-- `bets`: A meticulously crafted mapping that marries a bet ID to its respective `Bet` struct.
+### Important State Variables:
+1. `owner`: The account that deploys and owns the contract.
+2. `refereeOracle`: The default oracle for settling bets.
+3. `emergencyOracle`: Oracle with emergency privileges for overriding.
 
-## Structs
+### Mappings:
+- Bets by ID: `bets`.
+- User's active bets: `userActiveBets`.
+- User's won bets: `userWonBets`.
+- User's lost bets: `userLostBets`.
+- User's canceled bets: `userCanceledBets`.
+- User's open bets: `userOpenBets`.
 
-- `Bet`: A chronicle of engagements between Alice and Bob, tracking amounts, state, and the overseeing oracle.
+## Deployment
+Make sure you have the required dependencies installed:
+- OpenZeppelin Contracts for ERC20 and Counters.
+
+When deploying, provide the addresses for the `refereeOracle` and the `emergencyOracle` as constructor arguments.
+
+## Interaction
+1. **Bet Creation**: Any user can create a bet by staking a certain amount of tokens.
+2. **Accepting a Bet**: Another user can accept a bet by staking the same amount.
+3. **Oracle's Role**: The oracle determines the winner when the event being bet on concludes.
+4. **Bet Cancellation**: The bet creator (alice) can cancel the bet if it hasn't been accepted.
+5. **Reading Bet Details**: Anyone can read the details of a specific bet using its ID.
+6. **Fetching Available Bets**: Users can fetch all available bets.
 
 ## Events
+1. `BetCreated`: Emitted when a new bet is made.
+2. `BetAccepted`: Emitted when a bet is accepted by another user.
+3. `BetSettled`: Emitted when a bet has concluded.
+4. `BetOracleUpdated`: Emitted when the oracle for a specific bet is updated.
+5. `BetCanceled`: Emitted when a bet is canceled by its creator.
 
-- `BetCreated`: Celebrates the inception of a new bet.
-- `BetAccepted`: Marks the moment when Bob steps into the arena.
-- `BetSettled`: The climax. The oracle's gavel drops, resolving the bet.
-- `BetOracleUpdated`: Chronicles the shifts in the chosen oracle's narrative.
-- `BetCanceled`: The twist. Captures when Alice opts for a strategic retreat.
+## Utilities
+- The contract owner can change the default and emergency oracles using `setRefereeOracle` and `setEmergencyOracle` respectively.
 
-## Modifiers
+## Important Notes
+- Always make sure that the oracle involved in your bets is trustworthy.
+- Ensure adequate precautions when managing and settling bets.
 
-- `onlyOwner`: A sentinel ensuring that the realm's keys remain with its true master.
+## Review
+This contract is for demonstration purposes for the hackathon. Please ensure thorough review before using in a production environment.
 
-## Constructor
-
-- Our blueprint. It breathes life into the betting token, designates the oracles, and heralds the token era by minting the first supply.
-
-## Functions
-
-- `setRefereeOracle`: A privilege of the throne, allowing the kingpin to crown or reassign the default oracle.
-- `createBet`: The portal. Users script their tales, defining the stakes and the overseer. No oracle? The referee steps in.
-- `readBet`: The crystal ball, revealing the intricacies of any chosen bet.
-- `updateBetOracle`: A twist in the tale. The baton of oversight can shift, either by the bet's scribe or during emergencies.
-- `acceptBet`: Bob's clarion call, echoing his acceptance.
-- `settleBet`: The oracle's decree, heralding the victor.
-- `cancelBet`: Alice's prerogative to dissolve her challenge if untouched by Bob.
-
-## Subsequent Courses of Action
-
-### Access Control
-
-- As guardians of the realm, we contemplate on fortifying our defenses, possibly with more sentinels or through the arcane arts of RBAC. OpenZeppelin's `AccessControl` might be our chosen spellbook.
-
-### Emergency Measures
-
-- Preparedness defines us. We're charting out a "circuit breaker" or a "pause" rite to paralyze the contract's pulse during tempests.
-
-### Extended Functionalities
-
-- Justice above all. We envision a court where grievances against the oracle's judgement can seek redressal.
-
-### Optimization
-
-- Evolution is constant. Regular introspection and refinement promise the elixir of gas efficiency.
-
-### Quality Assurance
-
-- In the Side₿et sanctum, before any contract graces the mainnet, it undergoes the trials of a meticulous professional audit.
-
-### Documentation
-
-- Our scrolls are detailed and orderly, ensuring that any seeker finds clarity. And as our saga evolves, so will our chronicles.
-
-In totality, this isn't just a contract. It's a beacon, illuminating the path for betting platforms across RSK and beyond, all while brandishing the flag of the ERC20 standard.
+## License
+This contract uses the Unlicense.
